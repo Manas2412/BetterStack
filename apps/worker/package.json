@@ -1,5 +1,5 @@
 {
-  "name": "api",
+  "name": "worker",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -7,13 +7,12 @@
     "@types/bun": "latest"
   },
   "peerDependencies": {
-    "typescript": "^5",
-    "db": "*"
+    "typescript": "^5"
   },
   "dependencies": {
-    "@types/express": "^5.0.6",
-    "axios": "^1.13.4",
-    "dotenv": "^17.2.4",
-    "express": "^5.2.1"
+    "@types/axios": "^0.14.4",
+    "axios": "^1.13.5",
+    "redis-stream": "*",
+    "db": "*"
   }
 }
