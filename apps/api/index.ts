@@ -33,7 +33,7 @@ app.get("/status/:websiteId", authMiddleware, (req, res) => {
     },
     include: {
       ticks: {
-        take: 1,
+        take: 10,
         orderBy: {
           createdAt: "desc"
         }
@@ -104,6 +104,18 @@ app.post("/user/sign-in", async (req, res) => {
   });
 
 });
+
+app.get("/websites", authMiddleware, async (req,res) => {
+  const websites = await prisma.website.findMany({
+    where: {
+      user_id: req.userId
+    }
+  })
+
+  res.json({
+    websites
+  })
+})
 
 app.listen(process.env.Port || 3002, () => {
   console.log("Api is running on port 3002");
