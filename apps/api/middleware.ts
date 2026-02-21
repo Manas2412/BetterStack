@@ -1,13 +1,13 @@
-import type { NextFunction, Request } from "express"
+import type { NextFunction, Request, Response } from "express"
 import jwt from "jsonwebtoken"
 
-export const authMiddleware(req: Request,res: Response, next: NextFunction){
-    const header = req.body.authorization!;
-    try{
+export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+    const header = req.headers.authorization!;
+    try {
         let data = jwt.verify(header, process.env.JWT_SECRET);
         req.userId = data.sub as string;
         next();
-    }catch(err){
+    } catch (err) {
         res.status(403).send(err)
     }
 }

@@ -6,17 +6,19 @@
   "devDependencies": {
     "@types/bun": "latest"
   },
-    "scripts":{
-        "dev":"bun run index.ts",
-        "start":"bun run index.ts"
-    },
+  "scripts": {
+    "dev": "bun run index.ts",
+    "start": "bun run index.ts"
+  },
   "peerDependencies": {
     "typescript": "^5",
     "db": "*"
   },
   "dependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "axios": "^1.13.4",
+    "cors": "^2.8.6",
     "dotenv": "^17.2.4",
     "express": "^5.2.1"
   }

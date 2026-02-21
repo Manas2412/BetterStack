@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { LogIn, Activity } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
+import { BACKEND_URL } from '@/lib/utils';
 
 export default function SignIn() {
     const [username, setUsername] = useState('');
@@ -15,15 +17,27 @@ export default function SignIn() {
         setError('');
         setLoading(true);
 
-        // Placeholder login logic
-        console.log('Signing in with:', { username, password });
-
-        // Simulate API call
-        setTimeout(() => {
+        try {
+            const response = await axios.post(`${BACKEND_URL}/user/sign-in`, {
+                username: username,
+                password: password
+            });
+            localStorage.setItem("token", response.data.jwt);
             setLoading(false);
-            // For now, just show a success message or redirect
-            // router.push('/dashboard');
-        }, 1000);
+            router.push("/dashboard");
+        } catch (err: unknown) {
+            setLoading(false);
+            const message =
+                axios.isAxiosError(err) && err.response?.data?.message
+                    ? err.response.data.message
+                    : axios.isAxiosError(err) && !err.response
+                      ? "Could not reach server. Is the API running on port 3002?"
+                      : err instanceof Error
+                        ? err.message
+                        : "Something went wrong";
+            setError(message);
+        }
+
     };
 
     return (
@@ -103,7 +117,7 @@ export default function SignIn() {
 
                         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
                             <p className="text-slate-600">
-                                Don't have an account?{' '}
+                                Dont have an account?{' '}
                                 <button
                                     type="button"
                                     onClick={() => router.push('/signup')}

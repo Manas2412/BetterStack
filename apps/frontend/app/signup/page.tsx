@@ -17,16 +17,27 @@ export default function SignUp() {
         setError('');
         setLoading(true);
 
-        // Placeholder signup logic
-        let response = await axios.post(`${BACKEND_URL}/user/signin`, {
-            username: username,
-            password: password
-        })
+        try {
+            await axios.post(`${BACKEND_URL}/user/sign-up`, {
+                username: username,
+                password: password
+            });
+            setLoading(false);
+            router.push("/signin");
+        } catch (err: unknown) {
+            setLoading(false);
+            const message =
+                axios.isAxiosError(err) && err.response?.data?.message
+                    ? err.response.data.message
+                    : axios.isAxiosError(err) && !err.response
+                      ? "Could not reach server. Is the API running on port 3002?"
+                      : err instanceof Error
+                        ? err.message
+                        : "Something went wrong";
+            setError(message);
+        }
 
-        localStorage.setItem("token", response.data.jwt)
-
-        setLoading(false);
-        router.push("/dashboard")
+        
     };
 
     return (

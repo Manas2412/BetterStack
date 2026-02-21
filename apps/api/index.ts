@@ -4,9 +4,16 @@ import { AuthInput } from "./types";
 import jwt from "jsonwebtoken";
 import { authMiddleware } from "./middleware";
 require("dotenv").config();
+import cors from "cors";
 
 const app = express();
 app.use(express.json());
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+    credentials: true,
+  })
+);
 
 app.post("/website", authMiddleware, async (req, res) => {
   if (!req.body.url) {
@@ -25,15 +32,15 @@ app.post("/website", authMiddleware, async (req, res) => {
   });
 });
 
-app.get("/status/:websiteId", authMiddleware, (req, res) => {
-  const website = prisma.website.findFirst({
+app.get("/status/:websiteId", authMiddleware, async (req, res) => {
+  const website = await prisma.website.findFirst({
     where: {
       user_id: req.userId,
-      id: req.params.websiteId,
+      id: req.params.websiteId as string,
     },
     include: {
       ticks: {
-        take: 10,
+        take: 30,
         orderBy: {
           createdAt: "desc"
         }
@@ -41,7 +48,7 @@ app.get("/status/:websiteId", authMiddleware, (req, res) => {
     }
   })
 
-  if(!website){
+  if (!website) {
     res.status(409).json({
       message: "Website not found"
     })
@@ -57,7 +64,7 @@ app.get("/status/:websiteId", authMiddleware, (req, res) => {
 app.post("/user/sign-up", async (req, res) => {
   const data = AuthInput.safeParse(req.body);
   if (!data.success) {
-    res.status(403).send("Invalid Input");
+    res.status(400).json({ message: "Invalid input" });
     return;
   }
 
@@ -65,50 +72,57 @@ app.post("/user/sign-up", async (req, res) => {
     const user = await prisma.user.create({
       data: {
         username: data.data.username,
-        password: data.data.password
-      }
+        password: data.data.password,
+      },
     });
-    res.json({
-      id: user.id
-    });
-  } catch (err) {
-    res.status(403).send("Invalid Input");
-    return;
+    res.json({ id: user.id });
+  } catch (err: unknown) {
+    const isConflict =
+      err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2002";
+    if (isConflict) {
+      res.status(409).json({ message: "Username already taken" });
+      return;
+    }
+    res.status(500).json({ message: "Something went wrong" });
   }
 });
 
 app.post("/user/sign-in", async (req, res) => {
   const data = AuthInput.safeParse(req.body);
   if (!data.success) {
-    res.status(403).send("Invalid Input");
+    res.status(400).json({ message: "Invalid input" });
     return;
   }
 
   const user = await prisma.user.findUnique({
-    where: {
-      username: data.data.username,
-    }
+    where: { username: data.data.username },
   });
 
   if (!user || user.password !== data.data.password) {
-    res.status(403).send("Invalid Input");
+    res.status(401).json({ message: "Invalid username or password" });
     return;
   }
 
-  const token = jwt.sign({
-    sub: user.id
-  }, process.env.JWT_SECRET || "secret");
+  const token = jwt.sign(
+    { sub: user.id },
+    process.env.JWT_SECRET || "secret"
+  );
 
-  res.json({
-    jwt: token
-  });
-
+  res.json({ jwt: token });
 });
 
-app.get("/websites", authMiddleware, async (req,res) => {
+app.get("/websites", authMiddleware, async (req, res) => {
   const websites = await prisma.website.findMany({
     where: {
       user_id: req.userId
+    },
+    include: {
+      ticks: {
+        orderBy: [{
+          createdAt: 'desc'
+        }],
+        take: 1
+      }
     }
   })
 

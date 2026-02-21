@@ -1,34 +1,63 @@
 import axios from "axios";
-import { xAckBulk, xReadGroup } from "redis-stream/client";
-import { prisma } from "db/client"
+import { ensureConsumerGroup, xAckBulk, xReadGroup } from "redis-stream/client";
+import { prisma } from "db/client";
 
-const REGION_ID = process.env.REGION_ID!;
-const WORKER_ID = process.env.WORKER_ID!;
+const REGION_ID = process.env.REGION_ID ?? "dev";
+const WORKER_ID = process.env.WORKER_ID ?? "worker1";
 
-if (!REGION_ID) {
-    throw new Error("Region Id not found");
-}
-if (!WORKER_ID) {
-    throw new Error("Worker Id not found");
-}
+const REDIS_RETRY_MS = 5_000;
 
 async function main() {
-    while (1) {
-        //read from the stream
-        const res = await xReadGroup(REGION_ID, WORKER_ID);
-
-        if(!res){
-            continue;
+    for (;;) {
+        try {
+            await ensureConsumerGroup(REGION_ID);
+            break;
+        } catch (err) {
+            const msg = (err as Error).message ?? String(err);
+            if (msg.includes("ECONNREFUSED") || msg.includes("Connection")) {
+                console.warn("Waiting for Redis / stream setup... Retrying in", REDIS_RETRY_MS / 1000, "s");
+                await sleep(REDIS_RETRY_MS);
+            } else {
+                throw err;
+            }
         }
-
-        let promises = res.map(({ id, message }) => fetchWebsite(message.url, message.id));
-        await Promise.all(promises)
-
-        //process the website and store the result in the db. TODO: It should probably be routed through a queue in a bulk DB request.
-
-        //ack back to the queue that this event has been processed
-        xAckBulk(REGION_ID, res.map(({id}) => id));
     }
+    while (true) {
+        try {
+            const res = await xReadGroup(REGION_ID, WORKER_ID);
+
+            if (!res) {
+                await sleep(1000);
+                continue;
+            }
+
+            const promises = res.map(({ id, message }) =>
+                fetchWebsite(message.url, message.id)
+            );
+            await Promise.all(promises);
+
+            await xAckBulk(REGION_ID, res.map((r) => r.id));
+        } catch (err) {
+            const msg = (err as Error).message ?? String(err);
+            if (msg.includes("ECONNREFUSED") || msg.includes("Connection")) {
+                console.warn(
+                    "Redis unavailable (start Redis with e.g. `redis-server`). Retrying in",
+                    REDIS_RETRY_MS / 1000,
+                    "s..."
+                );
+                await sleep(REDIS_RETRY_MS);
+            } else if (msg.includes("NOGROUP")) {
+                await ensureConsumerGroup(REGION_ID);
+                await sleep(1000);
+            } else {
+                throw err;
+            }
+        }
+    }
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function fetchWebsite(url: string, websiteId: string) {

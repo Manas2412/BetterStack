@@ -6,4 +6,4 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 
-export const BACKEND_URL="http://localhost:3001"
+export const BACKEND_URL ="http://localhost:3002";

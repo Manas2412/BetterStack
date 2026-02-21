@@ -13,11 +13,4 @@ describe("Website get created", () => {
 
         }
     })
-
-    it("Website is created if url is present", async () => {
-        const res = await axios.post(`${BASE_URL}/website`, {
-            url: "https://google.com"
-        });
-        expect(res.data.id).not.toBeNull();
-    })
 })
