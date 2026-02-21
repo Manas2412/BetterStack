@@ -19,7 +19,14 @@
     "allowSyntheticDefaultImports": true,
 
     // Path mapping to workspace packages
- 
+    "baseUrl": ".",
+    "paths": {
+      "db": ["../../packages/db"],
+      "db/*": ["../../packages/db/*"],
+      "redis-stream": ["../../packages/redis"],
+      "redis-stream/client": ["../../packages/redis/index.ts"],
+      "redis-stream/*": ["../../packages/redis/*"]
+    },
 
     // Best practices
     "strict": true,

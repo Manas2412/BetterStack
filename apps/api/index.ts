@@ -1,5 +1,6 @@
 import express from "express";
 import { prisma } from "db/client";
+import { xAdd } from "redis-stream/client";
 import { AuthInput } from "./types";
 import jwt from "jsonwebtoken";
 import { authMiddleware } from "./middleware";
@@ -25,11 +26,14 @@ app.post("/website", authMiddleware, async (req, res) => {
       url: req.body.url,
       timeAdded: new Date(),
       user_id: req.userId!,
-    }
-  })
-  res.json({
-    id: website.id
+    },
   });
+  try {
+    await xAdd({ url: website.url, id: website.id });
+  } catch {
+    // Redis down; worker will pick up via pusher when it runs
+  }
+  res.json({ id: website.id });
 });
 
 app.get("/status/:websiteId", authMiddleware, async (req, res) => {

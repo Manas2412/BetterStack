@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { prisma } from "db/client";
 import { xAddBulk } from "redis-stream/client";
 

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Activity, ArrowLeft, Circle, Clock, Globe, RefreshCw, Wifi, WifiOff, Moon, Sun, LogOut } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
@@ -59,15 +59,29 @@ export default function WebsitePage() {
         fetchWebsiteStatus();
     }, [websiteId]);
 
-    const fetchWebsiteStatus = async () => {
+    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    useEffect(() => {
+        if (!website || website.ticks.length > 0) return;
+        pollIntervalRef.current = setInterval(() => {
+            fetchWebsiteStatus(false);
+        }, 4000);
+        return () => {
+            if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = null;
+            }
+        };
+    }, [website?.id, website?.ticks.length]);
+
+    const fetchWebsiteStatus = async (showLoading = true) => {
         try {
-            setLoading(true);
-            setError('');
+            if (showLoading) {
+                setLoading(true);
+                setError('');
+            }
             const token = localStorage.getItem('token');
             const response = await axios.get(`${BACKEND_URL}/status/${websiteId}`, {
-                headers: {
-                    Authorization: token
-                }
+                headers: { Authorization: token ?? '' },
             });
             setWebsite(response.data.website);
         } catch (err) {
@@ -77,11 +91,11 @@ export default function WebsitePage() {
                 router.push('/signin');
             } else if (axios.isAxiosError(err) && err.response?.status === 409) {
                 setError('Website not found');
-            } else {
+            } else if (showLoading) {
                 setError('Failed to load website details');
             }
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     };
 
@@ -125,34 +139,34 @@ export default function WebsitePage() {
 
     const status = getCurrentStatus();
 
-    // Response time bar chart — renders ticks as bars
+    // Response time bar chart — renders last 30 ticks as bars (oldest left, newest right)
     const renderResponseTimeBars = () => {
         if (!website || website.ticks.length === 0) return null;
 
-        const reversedTicks = [...website.ticks].reverse();
+        const ticksToShow = website.ticks.slice(0, 30);
+        const reversedTicks = [...ticksToShow].reverse();
         const maxTime = Math.max(...reversedTicks.map(t => t.response_time_ms), 1);
 
         return (
-            <div className="flex items-end space-x-1 h-32">
+            <div className="flex items-end gap-px h-32 w-full">
                 {reversedTicks.map((tick, index) => {
                     const heightPercent = (tick.response_time_ms / maxTime) * 100;
                     const isUp = tick.status === 'Up';
                     return (
                         <div
                             key={tick.id || index}
-                            className="flex-1 group relative"
+                            className="flex-1 min-w-[6px] h-full flex flex-col justify-end group relative"
                             title={`${tick.response_time_ms}ms — ${tick.status} — ${new Date(tick.createdAt).toLocaleString()}`}
                         >
                             <div
-                                className={`rounded-t transition-all ${isUp
+                                className={`rounded-t min-h-[4px] transition-all ${isUp
                                     ? isDark ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-emerald-500 hover:bg-emerald-600'
                                     : isDark ? 'bg-red-500 hover:bg-red-400' : 'bg-red-500 hover:bg-red-600'
                                     }`}
                                 style={{ height: `${Math.max(heightPercent, 4)}%` }}
                             />
                             {/* Tooltip */}
-                            <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 ${isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-800 text-white'
-                                }`}>
+                            <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 ${isDark ? 'bg-gray-700 text-gray-200' : 'bg-gray-800 text-white'}`}>
                                 {tick.response_time_ms}ms • {tick.status}
                             </div>
                         </div>
@@ -202,7 +216,7 @@ export default function WebsitePage() {
                             {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                         </button>
                         <button
-                            onClick={fetchWebsiteStatus}
+                            onClick={() => fetchWebsiteStatus()}
                             className={`p-2 rounded-lg transition-colors ${isDark ? 'bg-gray-800 hover:bg-gray-700 text-gray-400' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
                             title="Refresh"
                         >
@@ -319,7 +333,7 @@ export default function WebsitePage() {
                             <div className="flex items-center justify-between mb-6">
                                 <div>
                                     <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Response Time</h3>
-                                    <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Last {website.ticks.length} checks</p>
+                                    <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Last {Math.min(website.ticks.length, 30)} checks</p>
                                 </div>
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center space-x-1.5">
@@ -387,7 +401,7 @@ export default function WebsitePage() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {website.ticks.map((tick, index) => (
+                                            {website.ticks.slice(0, 10).map((tick, index) => (
                                                 <tr
                                                     key={tick.id || index}
                                                     className={`border-b last:border-b-0 transition-colors ${isDark ? 'border-gray-800 hover:bg-gray-800/50' : 'border-gray-50 hover:bg-gray-50'}`}

@@ -7,7 +7,16 @@ const WORKER_ID = process.env.WORKER_ID ?? "worker1";
 
 const REDIS_RETRY_MS = 5_000;
 
+async function ensureRegionExists(regionId: string) {
+    await prisma.region.upsert({
+        where: { id: regionId },
+        create: { id: regionId, name: regionId },
+        update: {},
+    });
+}
+
 async function main() {
+    await ensureRegionExists(REGION_ID);
     for (;;) {
         try {
             await ensureConsumerGroup(REGION_ID);
