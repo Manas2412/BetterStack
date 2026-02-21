@@ -6,4 +6,6 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 
-export const BACKEND_URL ="http://localhost:3002";
+export const BACKEND_URL =
+  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_BACKEND_URL) ||
+  "http://localhost:3002";

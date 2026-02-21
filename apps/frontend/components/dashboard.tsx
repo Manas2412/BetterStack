@@ -20,6 +20,12 @@ interface Website {
     lastChecked: string;
 }
 
+interface ApiWebsite {
+    id: string;
+    url: string;
+    ticks: { status: string; response_time_ms: number; createdAt: string }[];
+}
+
 interface DashboardProps {
     onSignOut: () => void;
 }
@@ -71,11 +77,11 @@ export default function Dashboard({ onSignOut }: DashboardProps) {
                     Authorization: token
                 }
             });
-            setWebsites(response.data.websites.map(w => ({
+            setWebsites((response.data.websites as ApiWebsite[]).map((w: ApiWebsite) => ({
                 id: w.id,
                 url: w.url,
-                status: w.ticks[0] ? w.ticks[0].status == "Up" ? "up" : "down" : "checking",
-                responseTime: w.ticks[0] ? w.ticks[0].response_time_ms : "0",
+                status: w.ticks[0] ? w.ticks[0].status === "Up" ? "up" : "down" : "checking",
+                responseTime: w.ticks[0] ? w.ticks[0].response_time_ms : 0,
                 lastChecked: w.ticks[0] ? w.ticks[0].createdAt : new Date().toISOString()
             })) || []);
         } catch (err) {
