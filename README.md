@@ -210,6 +210,4 @@ BetterStack/
 
 ---
 
-## License
 
-MIT (or your chosen license).
