@@ -1,135 +1,215 @@
-# Turborepo starter
+# UpMonitor
 
-This Turborepo starter is maintained by the Turborepo core team.
+**Monitor your websites. Get status, response times, and uptime in one place.**
 
-## Using this example
+A full-stack uptime monitoring app: add URLs, get periodic health checks, view response times and status history—all from a simple dashboard.
 
-Run the following command:
+---
 
-```sh
-npx create-turbo@latest
-```
+## Features
 
-## What's inside?
+- **Website monitoring** — Add URLs and track uptime with automatic health checks
+- **Response time & status** — See latency and Up/Down status per check
+- **Multi-region workers** — Run workers by region for distributed checks
+- **Real-time pipeline** — Redis Streams + worker + pusher for scalable job processing
+- **Auth** — Sign up / sign in with JWT; protected API and dashboard
+- **Modern stack** — Next.js 16, React 19, Express, Prisma, Bun, Redis, PostgreSQL
 
-This Turborepo includes the following packages/apps:
+---
 
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
+## Architecture
 
 ```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Frontend  │────▶│     API     │────▶│  PostgreSQL │
+│  (Next.js)  │     │  (Express)  │     │   (Prisma)  │
+└─────────────┘     └──────┬──────┘     └─────────────┘
+       │                    │
+       │                    │ xAdd
+       │                    ▼
+       │             ┌─────────────┐
+       │             │    Redis    │
+       │             │  (Streams) │
+       │             └──────┬──────┘
+       │                    │
+       │         ┌──────────┴──────────┐
+       │         ▼                     ▼
+       │  ┌─────────────┐      ┌─────────────┐
+       │  │   Worker    │      │   Pusher    │
+       │  │ (fetch URLs, │      │ (enqueue    │
+       │  │  write ticks)│      │  all sites) │
+       │  └─────────────┘      └─────────────┘
+       │         │
+       └─────────┴──────────────────────────────▶ User sees status & history
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+---
 
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
+## Tech stack
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+| Layer      | Tech |
+|-----------|------|
+| Frontend  | Next.js 16, React 19, Tailwind CSS |
+| API       | Express, JWT, CORS |
+| Database  | PostgreSQL, Prisma |
+| Queue     | Redis (Streams) |
+| Runtime   | Bun |
+| Monorepo  | Turborepo, workspaces |
 
-### Develop
+---
 
-To develop all apps and packages, run the following command:
+## Prerequisites
 
-```
-cd my-turborepo
+- **Bun** ≥ 1.0 ([install](https://bun.sh/docs/installation))
+- **PostgreSQL** (local or Docker)
+- **Redis** (local or Docker)
 
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
+---
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
-```
+## Quick start
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### 1. Clone and install
 
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+```bash
+git clone <your-repo-url>
+cd BetterStack
+bun install
 ```
 
-### Remote Caching
+### 2. Environment
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+Create `.env` files where needed (e.g. root or `apps/api`, `packages/db`, `apps/worker`, `apps/pusher`).
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+**API / DB / Worker / Pusher** (e.g. `apps/api/.env` or root `.env`):
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/betterstack"
+REDIS_URL="redis://localhost:6379"
+JWT_SECRET="your-secret"
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+**Frontend** (optional, for API URL):
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
+```env
+NEXT_PUBLIC_BACKEND_URL="http://localhost:3002"
 ```
 
-## Useful Links
+### 3. Database
 
-Learn more about the power of Turborepo:
+From repo root (or `packages/db`):
 
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+```bash
+cd packages/db
+bunx prisma migrate deploy
+# or for dev: bunx prisma migrate dev
+```
+
+### 4. Run everything (dev)
+
+From repo root:
+
+```bash
+bun run dev
+```
+
+This starts:
+
+- **Frontend** — http://localhost:3000  
+- **API** — http://localhost:3002  
+- **Worker** — consumes Redis stream, fetches URLs, writes ticks  
+- **Pusher** — enqueues all websites into Redis every 3s  
+
+Make sure **Redis** (and **PostgreSQL**) are running locally or in Docker before starting the worker.
+
+---
+
+## Docker
+
+Run the full stack with Docker Compose:
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+- **App:** http://localhost:3000  
+- **API:** http://localhost:3002  
+- **Postgres:** `localhost:5432` (user `postgres`, db `betterstack`)  
+- **Redis:** `localhost:6379`  
+
+Migrations run automatically when the API container starts. The worker waits for the API to be healthy before starting.
+
+To use a different host port for Postgres (e.g. if 5432 is in use), change the `postgres` service in `docker-compose.yml`:
+
+```yaml
+ports:
+  - "5433:5432"   # host 5433 → container 5432
+```
+
+---
+
+## Project structure
+
+```
+BetterStack/
+├── apps/
+│   ├── api/          # Express API (auth, websites, status)
+│   ├── frontend/     # Next.js dashboard & pages
+│   ├── pusher/       # Enqueues websites to Redis every 3s
+│   ├── worker/       # Consumes Redis stream, fetches URLs, writes ticks
+│   └── tests/        # E2E / integration tests
+├── packages/
+│   ├── db/           # Prisma schema, client, migrations
+│   ├── redis/        # Redis Streams client (xAdd, xReadGroup, etc.)
+│   ├── ui/           # Shared UI (if used)
+│   ├── eslint-config/
+│   └── typescript-config/
+├── docker-compose.yml
+├── package.json
+├── turbo.json
+└── README.md
+```
+
+---
+
+## Scripts
+
+| Command | Description |
+|--------|-------------|
+| `bun run dev` | Start frontend, api, worker, pusher (Turborepo) |
+| `bun run build` | Build all apps/packages |
+| `bun run check-types` | Type-check all packages |
+| `bun run lint` | Lint all packages |
+| `bun run format` | Format with Prettier |
+
+---
+
+## Environment variables
+
+| Variable | Where | Description |
+|----------|--------|-------------|
+| `DATABASE_URL` | API, Worker, Pusher, DB | PostgreSQL connection string |
+| `REDIS_URL` | API, Worker, Pusher | Redis connection string (default `redis://localhost:6379`) |
+| `JWT_SECRET` | API | Secret for signing JWTs |
+| `REGION_ID` | Worker | Consumer group / region (default `dev`) |
+| `WORKER_ID` | Worker | Worker identifier (default `worker1`) |
+| `NEXT_PUBLIC_BACKEND_URL` | Frontend | API base URL (e.g. `http://localhost:3002`) |
+
+---
+
+## API overview
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/user/sign-up` | Register (username, password) |
+| POST | `/user/sign-in` | Login, returns JWT |
+| GET | `/websites` | List user's websites (requires `Authorization`) |
+| POST | `/website` | Add website (requires `Authorization`) |
+| GET | `/status/:websiteId` | Website + recent ticks (requires `Authorization`) |
+| GET | `/health` | Health check (no auth) |
+
+---
+
+## License
+
+MIT (or your chosen license).
